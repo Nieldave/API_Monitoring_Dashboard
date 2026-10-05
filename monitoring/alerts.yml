@@ -1,0 +1,73 @@
+groups:
+  - name: fastapi-availability
+    rules:
+      - alert: APIDowntime
+        expr: api_up == 0 or up{job="fastapi"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: fastapi-monitoring-demo
+        annotations:
+          summary: "FastAPI service is down or unhealthy"
+          description: >-
+            api_up is 0 or Prometheus cannot scrape the fastapi target for more
+            than 30s. Check `docker compose ps`, `docker compose logs fastapi_app`
+            and GET /health (dependencies field).
+
+  - name: fastapi-performance
+    rules:
+      - alert: HighResponseTime
+        expr: >-
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[2m])) by (le)) > 3.0
+        for: 1m
+        labels:
+          severity: warning
+          service: fastapi-monitoring-demo
+        annotations:
+          summary: "p95 response time above 3 seconds"
+          description: >-
+            p95 latency is {{ $value | printf "%.2f" }}s. Find the slow endpoint
+            with: topk(5, histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[2m])) by (le, endpoint))).
+
+  - name: fastapi-errors
+    rules:
+      - alert: HTTP500ServerErrors
+        expr: >-
+          sum(rate(http_requests_total{status_code=~"5.."}[2m]))
+          / sum(rate(http_requests_total[2m])) > 0.05
+        for: 30s
+        labels:
+          severity: critical
+          service: fastapi-monitoring-demo
+        annotations:
+          summary: "HTTP 5xx error ratio above 5%"
+          description: >-
+            {{ $value | humanizePercentage }} of requests failed with 5xx over
+            the last 2m. Search logs: docker compose logs fastapi_app | jq
+            'select(.level=="error")'.
+
+      - alert: RateLimitSpike
+        expr: sum(rate(http_requests_total{status_code="429"}[1m])) > 0.1
+        for: 15s
+        labels:
+          severity: warning
+          service: fastapi-monitoring-demo
+        annotations:
+          summary: "HTTP 429 responses above 0.1 req/s"
+          description: >-
+            Rate limiting is rejecting {{ $value | printf "%.2f" }} req/s.
+            Identify the client or endpoint generating the traffic.
+
+      - alert: AuthFailureSpike
+        expr: sum(rate(http_requests_total{status_code="401"}[1m])) > 0.2
+        for: 15s
+        labels:
+          severity: warning
+          service: fastapi-monitoring-demo
+        annotations:
+          summary: "HTTP 401 responses above 0.2 req/s"
+          description: >-
+            {{ $value | printf "%.2f" }} authentication failures per second.
+            Check for expired/invalid credentials or a brute-force attempt.

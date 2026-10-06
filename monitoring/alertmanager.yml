@@ -1,39 +1,29 @@
 global:
   resolve_timeout: 1m
 
+  smtp_smarthost: smtp.gmail.com:587
+  smtp_from: userbroofthenation@gmail.com
+  smtp_auth_username: userbroofthenation@gmail.com
+  smtp_auth_password_file: /etc/alertmanager/secrets/smtp_password
+  smtp_require_tls: true
+
 route:
-  receiver: local-webhook
-  group_by: ["alertname", "severity"]
+  receiver: api-monitoring-notifications
+  group_by:
+    - alertname
+    - severity
   group_wait: 5s
   group_interval: 30s
   repeat_interval: 1h
 
 receivers:
-  # Default receiver: posts to the bundled echo container so notifications are
-  # visible with `docker compose logs alert_receiver`.
-  - name: local-webhook
+  - name: api-monitoring-notifications
+
     webhook_configs:
       - url: http://alert_receiver:8080/alerts
         send_resolved: true
 
-  # --- Slack (uncomment, then add `slack-critical` to the route) -------------
-  # Alertmanager does not expand env vars; mount the webhook URL as a file and
-  # reference it with api_url_file (see README "Enabling Slack and Email").
-  #
-  # - name: slack-critical
-  #   slack_configs:
-  #     - api_url_file: /etc/alertmanager/secrets/slack_webhook_url
-  #       channel: "#api-alerts"
-  #       send_resolved: true
-  #       title: "[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
-  #       text: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}\n{{ end }}"
-
-  # --- Email ---------------------------------------------------------------
-  # - name: email-oncall
-  #   email_configs:
-  #     - to: oncall@example.com
-  #       from: alertmanager@example.com
-  #       smarthost: smtp.example.com:587
-  #       auth_username: alertmanager@example.com
-  #       auth_password_file: /etc/alertmanager/secrets/smtp_password
-  #       send_resolved: true
+    email_configs:
+      - to: userbroofthenation@gmail.com
+        from: userbroofthenation@gmail.com
+        send_resolved: true

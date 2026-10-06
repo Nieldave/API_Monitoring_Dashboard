@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.config import get_settings
+from app.database import init_db
 from app.logging_config import configure_logging
 from app.metrics import API_UP, REQUESTS_IN_FLIGHT, record_request
 from app.routers import health, products, simulation, users
@@ -27,6 +28,7 @@ UNMATCHED_ENDPOINT = "unmatched"
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """Mark the service up on startup and down on graceful shutdown."""
+    init_db()
     API_UP.set(1)
     logger.info(
         "service_started",

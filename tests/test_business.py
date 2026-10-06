@@ -3,10 +3,36 @@
 import pytest
 
 from tests import counter_value, make_client
-
+from app.config import get_settings
+from app.database import get_connection
 pytestmark = pytest.mark.asyncio
 
+async def test_users_are_read_from_sqlite() -> None:
+    with get_connection() as connection:
+        connection.execute(
+            "INSERT INTO users (id, name, email, role, active) VALUES (?, ?, ?, ?, ?)",
+            (999, "Test Insert", "test.insert@example.com", "viewer", 1),
+        )
+        connection.commit()
+    try:
+        async with make_client() as client:
+            response = await client.get("/users")
+        assert any(user["id"] == 999 for user in response.json())
+    finally:
+        with get_connection() as connection:
+            connection.execute("DELETE FROM users WHERE id = 999")
+            connection.commit()
+    
+async def test_users_returns_500_when_database_unavailable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    # A directory is not a valid SQLite file, so every query fails.
+    monkeypatch.setattr(get_settings(), "database_path", str(tmp_path))
+    async with make_client() as client:
+        response = await client.get("/users")
 
+    assert response.status_code == 500
+            
 async def test_users_returns_list_of_users() -> None:
     async with make_client() as client:
         response = await client.get("/users")

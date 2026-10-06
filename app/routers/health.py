@@ -1,5 +1,6 @@
 """Health check endpoint."""
 
+import sqlite3
 import time
 from datetime import datetime, timezone
 
@@ -10,9 +11,8 @@ from prometheus_client import generate_latest
 from pydantic import BaseModel
 
 from app.config import get_settings
+from app.database import get_connection
 from app.metrics import API_UP
-from app.routers.products import PRODUCTS
-from app.routers.users import USERS
 
 router = APIRouter(tags=["health"])
 logger = structlog.get_logger(__name__)
@@ -34,17 +34,23 @@ class HealthResponse(BaseModel):
     dependencies: dict[str, str]
 
 
-def _check_dependencies() -> dict[str, str]:
-    """Probe the service's dependencies.
+def _check_database() -> str:
+    """Run real queries against SQLite; 'unavailable' on any failure."""
+    try:
+        with get_connection() as connection:
+            connection.execute("SELECT COUNT(*) FROM users").fetchone()
+            connection.execute("SELECT COUNT(*) FROM products").fetchone()
+    except (sqlite3.Error, OSError):
+        logger.exception("database_health_check_failed")
+        return "unavailable"
+    return "ok"
 
-    The sample API keeps its data in memory, so the probes verify the data
-    stores are loaded and the metrics registry is serialisable. Replace or
-    extend these with real DB/cache checks when connecting a backend.
-    """
+
+def _check_dependencies() -> dict[str, str]:
+    """Probe the service's dependencies."""
     settings = get_settings()
     return {
-        "user_store": "ok" if USERS else "unavailable",
-        "product_store": "ok" if PRODUCTS else "unavailable",
+        "database": _check_database(),
         "metrics_registry": "ok" if generate_latest() else "unavailable",
         "simulated_dependency": (
             "unavailable" if settings.health_force_failure else "ok"

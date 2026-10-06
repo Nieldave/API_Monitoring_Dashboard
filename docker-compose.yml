@@ -12,6 +12,8 @@ services:
       APP_HEALTH_FORCE_FAILURE: ${APP_HEALTH_FORCE_FAILURE:-false}
     ports:
       - "8000:8000"
+    volumes:
+      - app_data:/data
     healthcheck:
       test:
         - CMD
@@ -126,3 +128,4 @@ volumes:
   prometheus_data:
   grafana_data:
   alertmanager_data:
+  app_data:

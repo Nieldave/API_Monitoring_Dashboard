@@ -2,7 +2,14 @@
 
 from httpx import ASGITransport, AsyncClient
 from prometheus_client import REGISTRY
+import os
+import tempfile
+from pathlib import Path
 
+os.environ.setdefault(
+    "APP_DATABASE_PATH",
+    str(Path(tempfile.gettempdir()) / "api_monitoring_test.db"),
+)
 from app.main import app
 
 

@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     rate_limit_retry_after_seconds: int = 30
     # When true, /health reports a failed dependency (503, api_up=0).
     health_force_failure: bool = False
+    # SQLite database file (the Docker image overrides this to /data/app.db).
+    database_path: str = "data/app.db"
 
 
 @lru_cache

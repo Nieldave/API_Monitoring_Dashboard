@@ -9,7 +9,19 @@ from tests import make_client
 
 pytestmark = pytest.mark.asyncio
 
+async def test_health_unhealthy_when_database_unavailable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setattr(get_settings(), "database_path", str(tmp_path))
+    try:
+        async with make_client() as client:
+            response = await client.get("/health")
 
+        assert response.status_code == 503
+        assert response.json()["dependencies"]["database"] == "unavailable"
+    finally:
+        API_UP.set(1)
+        
 async def test_health_returns_ok_payload() -> None:
     async with make_client() as client:
         response = await client.get("/health")

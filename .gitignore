@@ -19,3 +19,5 @@ secrets/
 
 # Docker / local data
 *.log
+data/
+*.db
